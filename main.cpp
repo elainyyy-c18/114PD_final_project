@@ -1,3 +1,13 @@
+// main.cpp
+#include "game.h"
+
+int main() {
+    Game game("NTU_Student");
+    game.run();
+    return 0;
+}
+
+/*
 #include <iostream>
 using namespace std;
 
@@ -26,3 +36,4 @@ int main ()
     }
     return 0;
 }
+*/

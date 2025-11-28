@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+using namespace std;
 
 // =========================
 // 1. Character（純虛擬基底）
@@ -12,14 +13,14 @@
 
 class Character {
 protected:
-    std::string name;
+    string name;
     int health;
 
 public:
-    Character(const std::string& n, int hp);
+    Character(const string& n, int hp);
     virtual ~Character();
 
-    std::string getName() const;
+    string getName() const;
     int getHealth() const;
     void setHealth(int hp);
 
@@ -39,7 +40,7 @@ private:
     int score;
 
 public:
-    Player(const std::string& n);
+    Player(const string& n);
 
     int getX() const;
     int getY() const;
@@ -49,7 +50,7 @@ public:
 
     void moveLeft();
     void moveRight(int width);          // 需要知道畫面寬度
-    void draw(std::vector<std::string>& buffer) const;
+    void draw(vector<string>& buffer) const;
 
     void gainScore(int s);
 
@@ -61,7 +62,7 @@ public:
 };
 
 // 輸出 Player 狀態（Operator Overloading）
-std::ostream& operator<<(std::ostream& os, const Player& p);
+ostream& operator<<(ostream& os, const Player& p);
 
 // =========================
 // 3. Enemy（敵人／障礙物）
@@ -74,7 +75,7 @@ protected:
     bool active;
 
 public:
-    Enemy(const std::string& n, int hp, int x, int y, char sym);
+    Enemy(const string& n, int hp, int x, int y, char sym);
     virtual ~Enemy();
 
     int getX() const;
@@ -107,16 +108,16 @@ public:
 
 class Item {
 protected:
-    std::string name;
+    string name;
     int x, y;
     char symbol;
     bool active;
 
 public:
-    Item(const std::string& n, int x, int y, char sym);
+    Item(const string& n, int x, int y, char sym);
     virtual ~Item();
 
-    std::string getName() const;
+    string getName() const;
     int getX() const;
     int getY() const;
     char getSymbol() const;
@@ -161,8 +162,8 @@ T clampValue(T v, T lo, T hi) {
 class Game {
 private:
     Player player;
-    std::vector<Enemy*> enemies;
-    std::vector<Item*> items;
+    vector<Enemy*> enemies;
+    vector<Item*> items;
 
     bool isRaining;
     bool gameOver;
@@ -173,7 +174,7 @@ private:
     int timeLimit;
 
 public:
-    Game(const std::string& playerName, int w = 40, int h = 20, int limitSec = 60);
+    Game(const string& playerName, int w = 40, int h = 20, int limitSec = 60);
     ~Game();
 
     void run();   // 主遊戲迴圈
@@ -184,7 +185,7 @@ private:
     void handleCollisions();
     void removeInactive();
     void drawFrame(int remainingSec);
-    void drawRain(std::vector<std::string>& buffer);
+    void drawRain(vector<string>& buffer);
     void saveResult() const;  // File I/O + Exception Handling
 };
 

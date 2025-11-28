@@ -364,11 +364,13 @@ void Game::run() {
     clearScreen();
 
     std::cout << "====== NTU Student Survival Game ======\n";
-    std::cout << "左右方向鍵 或 A/D 控制學生\n";
-    std::cout << "C = 椰子樹葉(扣血), G = 雞排(補血+加分), U = 雨傘(放晴)\n";
-    std::cout << "請按任意鍵開始...\n";
+    std::cout << "Use LEFT/RIGHT arrow keys or A/D to move.\n";
+    std::cout << "C = coconut leaf (damage)\n";
+    std::cout << "G = chicken cutlet (heal + score)\n";
+    std::cout << "U = umbrella (stop rain + small heal)\n";
+    std::cout << "Press any key to start...\n";
     _getch();
-
+    
     auto startTime = std::chrono::steady_clock::now();
 
     while (!gameOver && !success) {
@@ -425,19 +427,19 @@ void Game::run() {
     try {
         saveResult();
     } catch (const std::exception& e) {
-        std::cerr << "存檔失敗: " << e.what() << "\n";
+        std::cerr << "Save file failed: " << e.what() << "\n";
     }
 
     clearScreen();
     if (gameOver) {
-        std::cout << "=========== GAME OVER ===========\n";
-        std::cout << "你掛了 QQ\n";
-        std::cout << "Final Score: " << player.getScore() << "\n";
+    std::cout << "=========== GAME OVER ===========\n";
+    std::cout << "You died QQ\n";
+    std::cout << "Final Score: " << player.getScore() << "\n";
     } else if (success) {
-        std::cout << "=========== SUCCESS! ============\n";
-        std::cout << "你在時間內活了下來！\n";
-        std::cout << "Final Score: " << player.getScore() << "\n";
+    std::cout << "=========== SUCCESS! ============\n";
+    std::cout << "You survived until the time limit!\n";
+    std::cout << "Final Score: " << player.getScore() << "\n";
     }
-    std::cout << "按任意鍵結束...\n";
+    std::cout << "Press any key to exit...\n";
     _getch();
 }

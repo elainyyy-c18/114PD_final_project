@@ -1,8 +1,28 @@
 #include <iostream>
 using namespace std;
 
+class Student
+{
+
+};
+
+class Score
+{
+
+};
+
+class Obstacle
+{
+
+};
+
 int main ()
 {
-    cout << "QQQQQQ";
+    int t = 30; // t 是 30 秒遊玩時間
+    while (t > 0)
+    {
+
+        --t;
+    }
     return 0;
 }

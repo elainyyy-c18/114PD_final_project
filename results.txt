@@ -1,1 +1,2 @@
 GAMEOVER NTU_Student HP=0 Score=0
+GAMEOVER NTU_Student HP=0 Score=5

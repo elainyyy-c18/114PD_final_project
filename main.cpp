@@ -2,7 +2,7 @@
 #include "game.h"
 
 int main() {
-    Game game("NTU_Student");
+    Game game("NTU_Student"); 
     game.run();
     return 0;
 }

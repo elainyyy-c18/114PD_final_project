@@ -85,7 +85,6 @@ void Player::gainScore(int s) {
 // 經驗值累加（Operator Overloading 範例）
 Player& Player::operator+=(int exp) {
     experience += exp;
-    // 簡單：每累積 50 經驗，就升級
     while (experience >= 50) {
         experience -= 50;
         level++;
@@ -93,7 +92,6 @@ Player& Player::operator+=(int exp) {
     return *this;
 }
 
-// 這邊只是示意，實際攻擊邏輯你可以自己加
 void Player::attack(Character& target) {
     int newHp = target.getHealth() - 10;
     target.setHealth(newHp);
@@ -163,35 +161,23 @@ void Item::setY(int ny) { y = ny; }
 bool Item::isActive() const { return active; }
 void Item::deactivate() { active = false; }
 
-// 雞排：補血 + 加分 + 給經驗
+// 雞排：只加分 + 經驗（不補血）
 ChickenCutlet::ChickenCutlet(int x, int y)
     : Item("ChickenCutlet", x, y, 'G') {}
 
 void ChickenCutlet::apply(Player& p) {
-    int hp = p.getHealth();
-    hp += 15;
-    hp = clampValue(hp, 0, 100);
-    p.setHealth(hp);
-
     p.gainScore(10);
-    p += 10; // 使用 operator+= 加經驗
-
+    p += 10;
     deactivate();
 }
 
-// 雨傘：放晴 + 小補血 + 加分
+// 雨傘：只加分 + 經驗（停雨邏輯在 Game 裡做）
 Umbrella::Umbrella(int x, int y)
     : Item("Umbrella", x, y, 'U') {}
 
 void Umbrella::apply(Player& p) {
-    int hp = p.getHealth();
-    hp += 5;
-    hp = clampValue(hp, 0, 100);
-    p.setHealth(hp);
-
     p.gainScore(5);
     p += 5;
-
     deactivate();
 }
 
@@ -206,11 +192,18 @@ Game::Game(const std::string& playerName, int w, int h, int limitSec)
       success(false),
       width(w),
       height(h),
-      timeLimit(limitSec) {
+      timeLimit(limitSec),
+      nextRainStart(0),
+      rainEndTime(-1),          // 雖然不再用 timer 停雨，但保留欄位沒關係
+      lastRainDamageSecond(-1) {
+
     srand((unsigned)time(NULL));
 
-    // 把玩家放在底部中央
+    // 玩家放在底部中央
     player.setPosition(width / 2, height - 1);
+
+    // 第一場雨 10~20 秒之間
+    nextRainStart = 10 + rand() % 11; // 10~20
 }
 
 Game::~Game() {
@@ -218,24 +211,32 @@ Game::~Game() {
     for (auto it : items) delete it;
 }
 
-void Game::spawnObjects(int elapsedSec) {
+void Game::spawnObjects(int /*elapsedSec*/) {
     // 椰子樹葉：比較常出現
     if (rand() % 8 == 0) {
         int x = rand() % width;
         enemies.push_back(new CoconutLeaf(x, 0));
     }
 
-    // 雞排
+    // 雞排：加分用
     if (rand() % 20 == 0) {
         int x = rand() % width;
         items.push_back(new ChickenCutlet(x, 0));
     }
 
-    // 雨傘：下雨時比較容易掉
-    int umbrellaChance = isRaining ? 30 : 80;
-    if (rand() % umbrellaChance == 0) {
-        int x = rand() % width;
-        items.push_back(new Umbrella(x, 0));
+    // ⭐ 下雨時：場上「一定」要有至少一把雨傘 U ⭐
+    if (isRaining) {
+        bool hasUmbrella = false;
+        for (auto it : items) {
+            if (it->isActive() && it->getSymbol() == 'U') {
+                hasUmbrella = true;
+                break;
+            }
+        }
+        if (!hasUmbrella) {
+            int x = rand() % width;
+            items.push_back(new Umbrella(x, 0));
+        }
     }
 }
 
@@ -254,11 +255,11 @@ void Game::updateObjects() {
     }
 }
 
-void Game::handleCollisions() {
+void Game::handleCollisions(int elapsedSec) {
     int px = player.getX();
     int py = player.getY();
 
-    // 跟敵人碰撞
+    // 敵人
     for (auto e : enemies) {
         if (!e->isActive()) continue;
         if (e->getX() == px && e->getY() == py) {
@@ -266,11 +267,24 @@ void Game::handleCollisions() {
         }
     }
 
-    // 跟物品碰撞
+    // 物品
     for (auto it : items) {
         if (!it->isActive()) continue;
         if (it->getX() == px && it->getY() == py) {
+            bool isUmb = (it->getSymbol() == 'U');
             it->apply(player);
+
+            // ⭐ 撿到雨傘：只有這個事件可以讓雨停 ⭐
+            if (isUmb && isRaining) {
+                isRaining = false;
+                lastRainDamageSecond = -1;
+
+                // 下一場雨一樣是 10~20 秒之後
+                int remainingSec = timeLimit - elapsedSec;
+                if (remainingSec > 0) {
+                    nextRainStart = elapsedSec + 10 + rand() % 11;
+                }
+            }
         }
     }
 }
@@ -302,7 +316,28 @@ void Game::drawRain(std::vector<std::string>& buffer) {
     }
 }
 
+// ★★★ 結束畫面也放在這裡：時間到 / HP 歸零 → 清螢幕 + 顯示結束頁 + exit(0)
 void Game::drawFrame(int remainingSec) {
+    if (remainingSec <= 0 || player.getHealth() <= 0) {
+        clearScreen();   // 清掉遊戲畫面
+
+        std::cout << "========================================\n";
+        if (player.getHealth() <= 0) {
+            std::cout << "=========== GAME OVER ===========\n";
+            std::cout << "You died QQ\n";
+        } else {
+            std::cout << "=========== SUCCESS! ============\n";
+            std::cout << "You survived until the time limit!\n";
+        }
+        std::cout << "Final Score: " << player.getScore() << "\n";
+        std::cout << "========================================\n\n";
+        std::cout << "Press any key to exit...\n";
+        _getch();
+
+        std::exit(0); // 直接結束程式（包含 main）
+    }
+
+    // ======= 正常遊戲畫面（還沒結束） =======
     clearScreen();
 
     std::cout << "HP: " << std::setw(3) << player.getHealth()
@@ -315,10 +350,8 @@ void Game::drawFrame(int remainingSec) {
 
     std::vector<std::string> buffer(height, std::string(width, ' '));
 
-    // 畫下雨效果
     if (isRaining) drawRain(buffer);
 
-    // 畫敵人
     for (auto e : enemies) {
         if (!e->isActive()) continue;
         int ex = e->getX();
@@ -328,7 +361,6 @@ void Game::drawFrame(int remainingSec) {
         }
     }
 
-    // 畫物品
     for (auto it : items) {
         if (!it->isActive()) continue;
         int ix = it->getX();
@@ -338,7 +370,6 @@ void Game::drawFrame(int remainingSec) {
         }
     }
 
-    // 畫玩家
     player.draw(buffer);
 
     for (int i = 0; i < height; i++) {
@@ -366,80 +397,59 @@ void Game::run() {
     std::cout << "====== NTU Student Survival Game ======\n";
     std::cout << "Use LEFT/RIGHT arrow keys or A/D to move.\n";
     std::cout << "C = coconut leaf (damage)\n";
-    std::cout << "G = chicken cutlet (heal + score)\n";
-    std::cout << "U = umbrella (stop rain + small heal)\n";
+    std::cout << "G = chicken cutlet (score)\n";
+    std::cout << "U = umbrella (stop rain + small score)\n";
+    std::cout << "Game time: " << timeLimit << " seconds.\n";
     std::cout << "Press any key to start...\n";
     _getch();
-    
-    auto startTime = std::chrono::steady_clock::now();
 
-    while (!gameOver && !success) {
+    auto startTime = std::chrono::steady_clock::now();
+    lastRainDamageSecond = -1;
+
+    while (true) {
         auto now = std::chrono::steady_clock::now();
         int elapsedSec = (int)std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
         int remainingSec = timeLimit - elapsedSec;
+        if (remainingSec < 0) remainingSec = 0;
 
-        if (remainingSec <= 0) {
-            success = true;
-            break;
-        }
-
-        // 血量破防開始下雨
-        if (!isRaining && player.getHealth() <= 50) {
+        // ===== 控制下雨開始（每 10~20 秒一次） =====
+        if (!isRaining && elapsedSec >= nextRainStart) {
             isRaining = true;
+            lastRainDamageSecond = -1;
+            // 不再用 rainEndTime：雨只會因為撿到 U 而停止
         }
 
-        // 下雨持續扣血（慢慢扣）
-        if (isRaining && elapsedSec % 2 == 0) {
+        // ===== 下雨時每秒扣 1 HP =====
+        if (isRaining && elapsedSec != lastRainDamageSecond) {
             int hp = player.getHealth();
-            hp -= 1;
+            hp -= 5;
             hp = clampValue(hp, 0, 100);
             player.setHealth(hp);
+            lastRainDamageSecond = elapsedSec;
         }
 
-        if (player.getHealth() <= 0) {
-            gameOver = true;
-            break;
-        }
+        // ===== 如果 HP 變 0，會在 drawFrame 直接跳出 GAME OVER 畫面 =====
 
-        // 處理鍵盤輸入
+        // ===== 處理鍵盤輸入 =====
         if (_kbhit()) {
             int c = _getch();
             if (c == 0 || c == 224) {
                 int c2 = _getch();
-                if (c2 == 75) player.moveLeft();           // 左
-                else if (c2 == 77) player.moveRight(width); // 右
+                if (c2 == 75)      player.moveLeft();
+                else if (c2 == 77) player.moveRight(width);
             } else {
                 if (c == 'a' || c == 'A') player.moveLeft();
                 if (c == 'd' || c == 'D') player.moveRight(width);
             }
         }
 
+        // ===== 更新物件 & 畫面 =====
         spawnObjects(elapsedSec);
         updateObjects();
-        handleCollisions();
+        handleCollisions(elapsedSec);
         removeInactive();
-        drawFrame(remainingSec);
+        drawFrame(remainingSec);   // 時間到 or HP 歸零，都在這裡跳到結束畫面
 
         Sleep(80);
     }
-
-    // 存檔，有錯就印錯誤（Exception Handling）
-    try {
-        saveResult();
-    } catch (const std::exception& e) {
-        std::cerr << "Save file failed: " << e.what() << "\n";
-    }
-
-    clearScreen();
-    if (gameOver) {
-    std::cout << "=========== GAME OVER ===========\n";
-    std::cout << "You died QQ\n";
-    std::cout << "Final Score: " << player.getScore() << "\n";
-    } else if (success) {
-    std::cout << "=========== SUCCESS! ============\n";
-    std::cout << "You survived until the time limit!\n";
-    std::cout << "Final Score: " << player.getScore() << "\n";
-    }
-    std::cout << "Press any key to exit...\n";
-    _getch();
 }

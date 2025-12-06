@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 #include <iostream>
-using namespace std;
 
 // =========================
 // 1. Character（純虛擬基底）
@@ -13,14 +12,14 @@ using namespace std;
 
 class Character {
 protected:
-    string name;
+    std::string name;
     int health;
 
 public:
-    Character(const string& n, int hp);
+    Character(const std::string& n, int hp);
     virtual ~Character();
 
-    string getName() const;
+    std::string getName() const;
     int getHealth() const;
     void setHealth(int hp);
 
@@ -40,7 +39,7 @@ private:
     int score;
 
 public:
-    Player(const string& n);
+    Player(const std::string& n);
 
     int getX() const;
     int getY() const;
@@ -50,7 +49,7 @@ public:
 
     void moveLeft();
     void moveRight(int width);          // 需要知道畫面寬度
-    void draw(vector<string>& buffer) const;
+    void draw(std::vector<std::string>& buffer) const;
 
     void gainScore(int s);
 
@@ -62,7 +61,7 @@ public:
 };
 
 // 輸出 Player 狀態（Operator Overloading）
-ostream& operator<<(ostream& os, const Player& p);
+std::ostream& operator<<(std::ostream& os, const Player& p);
 
 // =========================
 // 3. Enemy（敵人／障礙物）
@@ -75,7 +74,7 @@ protected:
     bool active;
 
 public:
-    Enemy(const string& n, int hp, int x, int y, char sym);
+    Enemy(const std::string& n, int hp, int x, int y, char sym);
     virtual ~Enemy();
 
     int getX() const;
@@ -108,16 +107,16 @@ public:
 
 class Item {
 protected:
-    string name;
+    std::string name;
     int x, y;
     char symbol;
     bool active;
 
 public:
-    Item(const string& n, int x, int y, char sym);
+    Item(const std::string& n, int x, int y, char sym);
     virtual ~Item();
 
-    string getName() const;
+    std::string getName() const;
     int getX() const;
     int getY() const;
     char getSymbol() const;
@@ -130,14 +129,14 @@ public:
     virtual void apply(Player& p) = 0;
 };
 
-// 雞排：補血 + 加分 + 給一點經驗
+// 雞排：只加分 + 經驗（不補血）
 class ChickenCutlet : public Item {
 public:
     ChickenCutlet(int x, int y);
     void apply(Player& p) override;
 };
 
-// 雨傘：放晴 + 小補血 + 加分
+// 雨傘：放晴 + 小補血 + 加分（停雨邏輯在 Game 內處理）
 class Umbrella : public Item {
 public:
     Umbrella(int x, int y);
@@ -162,8 +161,8 @@ T clampValue(T v, T lo, T hi) {
 class Game {
 private:
     Player player;
-    vector<Enemy*> enemies;
-    vector<Item*> items;
+    std::vector<Enemy*> enemies;
+    std::vector<Item*> items;
 
     bool isRaining;
     bool gameOver;
@@ -171,10 +170,15 @@ private:
 
     int width;
     int height;
-    int timeLimit;
+    int timeLimit;              // 總遊戲時間（秒），預設 30
+
+    // 下雨時機控制
+    int nextRainStart;          // 下一次開始下雨的時間（自遊戲開始起算的秒數）
+    int rainEndTime;            // 這次下雨結束的時間（秒）
+    int lastRainDamageSecond;   // 上一次扣血的秒數（讓它變成一秒扣一次）
 
 public:
-    Game(const string& playerName, int w = 40, int h = 20, int limitSec = 60);
+    Game(const std::string& playerName, int w = 40, int h = 20, int limitSec = 30);
     ~Game();
 
     void run();   // 主遊戲迴圈
@@ -182,10 +186,10 @@ public:
 private:
     void spawnObjects(int elapsedSec);
     void updateObjects();
-    void handleCollisions();
+    void handleCollisions(int elapsedSec);
     void removeInactive();
     void drawFrame(int remainingSec);
-    void drawRain(vector<string>& buffer);
+    void drawRain(std::vector<std::string>& buffer);
     void saveResult() const;  // File I/O + Exception Handling
 };
 

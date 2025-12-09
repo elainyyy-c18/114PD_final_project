@@ -9,8 +9,28 @@
 #include <fstream>
 #include <stdexcept>
 
+static HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+// 真正清空整個 console，用在：一局開始前、結束畫面
 static void clearScreen() {
-    system("cls");
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    DWORD count;
+    DWORD cellCount;
+    COORD homeCoords = { 0, 0 };
+
+    if (!GetConsoleScreenBufferInfo(hConsole, &csbi)) return;
+    cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+
+    // 把整個 buffer 填空白
+    FillConsoleOutputCharacter(hConsole, ' ', cellCount, homeCoords, &count);
+    FillConsoleOutputAttribute(hConsole, csbi.wAttributes, cellCount, homeCoords, &count);
+    SetConsoleCursorPosition(hConsole, homeCoords);
+}
+
+// 不清畫面，只把游標移到左上角，用在每一 frame 畫面更新
+static void moveCursorHome() {
+    COORD coord = { 0, 0 };
+    SetConsoleCursorPosition(hConsole, coord);
 }
 
 static void flashScreen() {
@@ -278,7 +298,8 @@ void Game::drawRain(std::vector<std::string>& buffer) {
 }
 
 void Game::drawFrame(int remainingSec) {
-    clearScreen();
+    // 不要整個 cls，只把游標移回左上角，直接蓋畫面
+    moveCursorHome();
 
     std::cout << "HP: " << std::setw(3) << player.getHealth()
               << "   Time Left: " << std::setw(3) << remainingSec
@@ -322,16 +343,31 @@ void Game::saveResult() const {
     if (!ofs) {
         throw std::runtime_error("Cannot open results.txt");
     }
-    ofs << (success ? "SUCCESS" : "GAMEOVER") << " "
+
+    // 取得現在時間
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::tm localTime;
+
+    // Windows 版 localtime_s（安全版本）
+    localtime_s(&localTime, &now_c);
+
+    char timeBuf[32];
+    std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &localTime);
+
+    // 寫入結果
+    ofs << "[" << timeBuf << "] "
+        << (success ? "SUCCESS" : "GAMEOVER") << " "
         << player.getName() << " "
         << "HP=" << player.getHealth() << " "
-        << "Score=" << player.getScore() << "\n";
+        << "Score=" << player.getScore()
+        << "\n";
 }
 
 void Game::run() {
     // 每次 run 之前重設狀態
-    gameOver = false;
-    success  = false;
+    gameOver  = false;
+    success   = false;
     isRaining = false;
 
     for (auto e : enemies) delete e;
@@ -341,8 +377,8 @@ void Game::run() {
 
     player.setHealth(100);
     player.setPosition(width / 2, height - 1);
-    nextRainStart = 10 + std::rand() % 11;
-    lastRainDamageSecond = -1;
+    nextRainStart          = 10 + std::rand() % 11;
+    lastRainDamageSecond   = -1;
 
     hideCursor();
     clearScreen();
@@ -365,6 +401,7 @@ void Game::run() {
         int remainingSec = timeLimit - elapsedSec;
         if (remainingSec < 0) remainingSec = 0;
 
+        // 判斷勝利 / 失敗（先判斷，不再畫下一 frame）
         if (elapsedSec >= timeLimit) {
             success = true;
             break;
@@ -374,6 +411,7 @@ void Game::run() {
             break;
         }
 
+        // 下雨邏輯
         if (!isRaining && elapsedSec >= nextRainStart) {
             isRaining = true;
             lastRainDamageSecond = -1;
@@ -387,34 +425,39 @@ void Game::run() {
             lastRainDamageSecond = elapsedSec;
         }
 
-        if (_kbhit()) {
-            int c = _getch();
-            if (c == 0 || c == 224) {
-                int c2 = _getch();
-                if (c2 == 75)      player.moveLeft();
-                else if (c2 == 77) player.moveRight(width);
-            } else {
-                if (c == 'a' || c == 'A') player.moveLeft();
-                if (c == 'd' || c == 'D') player.moveRight(width);
-            }
+        // 鍵盤輸入：用 GetAsyncKeyState，避免 key repeat 卡住
+        bool leftPressed =
+            (GetAsyncKeyState(VK_LEFT)  & 0x8000) ||
+            (GetAsyncKeyState('A')      & 0x8000);
+
+        bool rightPressed =
+            (GetAsyncKeyState(VK_RIGHT) & 0x8000) ||
+            (GetAsyncKeyState('D')      & 0x8000);
+
+        if (leftPressed && !rightPressed) {
+            player.moveLeft();
+        } else if (rightPressed && !leftPressed) {
+            player.moveRight(width);
         }
 
+        // 更新物件＋畫面
         spawnObjects(elapsedSec);
         updateObjects();
         handleCollisions(elapsedSec);
         removeInactive();
-        drawFrame(remainingSec);
+        drawFrame(remainingSec);   // 裡面用 moveCursorHome()，不會閃
 
         Sleep(80);
     }
 
+    // 存結果
     try {
         saveResult();
     } catch (const std::exception& e) {
         std::cerr << "Save file failed: " << e.what() << "\n";
     }
 
-    // 🔥 清空畫面，顯示純結束畫面＋你想要的訊息
+    // 🔥 這裡一定會執行到：清畫面＋顯示純結束畫面
     clearScreen();
 
     std::cout << (gameOver ? "===== GAME OVER =====\n"

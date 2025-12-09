@@ -1,10 +1,3 @@
-// =============================================
-// ===============  game.cpp  ==================
-// ====== Double Buffer (No Flickering) ========
-// =============================================
-// test change
-
-
 #include "game.h"
 
 #include <conio.h>
@@ -14,10 +7,21 @@
 #include <ctime>
 #include <iomanip>
 #include <fstream>
-#include <sstream>   // ★新增：因為 drawFrame 使用 ostringstream
 #include <stdexcept>
 
-// ======= 螢幕工具 =======
+static void clearScreen() {
+    system("cls");
+}
+
+static void flashScreen() {
+    HANDLE h = GetStdHandle(STD_OUTPUT_HANDLE);
+    for (int i = 0; i < 2; i++) {
+        SetConsoleTextAttribute(h, BACKGROUND_RED | FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+        Sleep(50);
+        SetConsoleTextAttribute(h, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+        Sleep(50);
+    }
+}
 
 static void hideCursor() {
     HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -27,9 +31,7 @@ static void hideCursor() {
     SetConsoleCursorInfo(out, &cursorInfo);
 }
 
-// =====================
-// Character 實作
-// =====================
+// ===== Character =====
 
 Character::Character(const std::string& n, int hp)
     : name(n), health(hp) {}
@@ -40,9 +42,7 @@ std::string Character::getName() const { return name; }
 int Character::getHealth() const { return health; }
 void Character::setHealth(int hp) { health = hp; }
 
-// =====================
-// Player 實作
-// =====================
+// ===== Player =====
 
 Player::Player(const std::string& n)
     : Character(n, 100), level(1), experience(0), x(0), y(0), score(0) {}
@@ -51,18 +51,11 @@ int Player::getX() const { return x; }
 int Player::getY() const { return y; }
 int Player::getScore() const { return score; }
 
-void Player::setPosition(int px, int py) {
-    x = px;
-    y = py;
-}
+void Player::setPosition(int px, int py) { x = px; y = py; }
 
-void Player::moveLeft() {
-    if (x > 0) x--;
-}
+void Player::moveLeft() { if (x > 0) x--; }
 
-void Player::moveRight(int width) {
-    if (x < width - 1) x++;
-}
+void Player::moveRight(int width) { if (x < width - 1) x++; }
 
 void Player::draw(std::vector<std::string>& buffer) const {
     if (y >= 0 && y < (int)buffer.size() &&
@@ -71,13 +64,10 @@ void Player::draw(std::vector<std::string>& buffer) const {
     }
 }
 
-void Player::gainScore(int s) {
-    score += s;
-}
+void Player::gainScore(int s) { score += s; }
 
 Player& Player::operator+=(int exp) {
     experience += exp;
-
     while (experience >= 50) {
         experience -= 50;
         level++;
@@ -95,9 +85,7 @@ std::ostream& operator<<(std::ostream& os, const Player& p) {
     return os;
 }
 
-// =====================
-// Enemy 實作
-// =====================
+// ===== Enemy =====
 
 Enemy::Enemy(const std::string& n, int hp, int x, int y, char sym)
     : Character(n, hp), x(x), y(y), symbol(sym), active(true) {}
@@ -113,32 +101,26 @@ void Enemy::setY(int ny) { y = ny; }
 bool Enemy::isActive() const { return active; }
 void Enemy::deactivate() { active = false; }
 
-void Enemy::update() {
-    y++;
-}
+void Enemy::update() { y++; }
 
 void Enemy::attack(Character& target) {
     int newHp = target.getHealth() - 5;
     target.setHealth(newHp);
 }
 
-// 椰子樹葉
 CoconutLeaf::CoconutLeaf(int x, int y)
     : Enemy("CoconutLeaf", 1, x, y, 'C') {}
 
 void CoconutLeaf::onCollision(Player& p) {
     int hp = p.getHealth();
     hp -= 20;
-    if (hp < 0) hp = 0;
-    if (hp > 100) hp = 100;
+    hp = clampValue(hp, 0, 100);
     p.setHealth(hp);
-
     deactivate();
+    flashScreen();
 }
 
-// =====================
-// Item 實作
-// =====================
+// ===== Item =====
 
 Item::Item(const std::string& n, int x, int y, char sym)
     : name(n), x(x), y(y), symbol(sym), active(true) {}
@@ -158,14 +140,8 @@ ChickenCutlet::ChickenCutlet(int x, int y)
     : Item("ChickenCutlet", x, y, 'G') {}
 
 void ChickenCutlet::apply(Player& p) {
-    int hp = p.getHealth();
-    hp += 15;
-    if (hp > 100) hp = 100;
-    p.setHealth(hp);
-
     p.gainScore(10);
     p += 10;
-
     deactivate();
 }
 
@@ -173,20 +149,12 @@ Umbrella::Umbrella(int x, int y)
     : Item("Umbrella", x, y, 'U') {}
 
 void Umbrella::apply(Player& p) {
-    int hp = p.getHealth();
-    hp += 5;
-    if (hp > 100) hp = 100;
-    p.setHealth(hp);
-
     p.gainScore(5);
     p += 5;
-
     deactivate();
 }
 
-// =====================
-// Game 實作
-// =====================
+// ===== Game =====
 
 Game::Game(const std::string& playerName, int w, int h, int limitSec)
     : player(playerName),
@@ -195,38 +163,14 @@ Game::Game(const std::string& playerName, int w, int h, int limitSec)
       success(false),
       width(w),
       height(h),
-      timeLimit(limitSec)
-{
-    srand((unsigned)time(NULL));
+      timeLimit(limitSec),
+      nextRainStart(0),
+      rainEndTime(-1),
+      lastRainDamageSecond(-1) {
 
+    std::srand((unsigned)std::time(nullptr));
     player.setPosition(width / 2, height - 1);
-
-    // ============================================
-    // ★新增：建立雙緩衝 Console Screen Buffer
-    // ============================================
-    screenBuffer[0] = CreateConsoleScreenBuffer(
-        GENERIC_READ | GENERIC_WRITE,
-        0, NULL,
-        CONSOLE_TEXTMODE_BUFFER,
-        NULL
-    );
-
-    screenBuffer[1] = CreateConsoleScreenBuffer(
-        GENERIC_READ | GENERIC_WRITE,
-        0, NULL,
-        CONSOLE_TEXTMODE_BUFFER,
-        NULL
-    );
-
-    activeBuffer = 0;
-
-    SetConsoleActiveScreenBuffer(screenBuffer[activeBuffer]);
-}
-
-// ★新增：翻面（swap buffer）
-void Game::flipBuffer() {
-    activeBuffer = 1 - activeBuffer;
-    SetConsoleActiveScreenBuffer(screenBuffer[activeBuffer]);
+    nextRainStart = 10 + std::rand() % 11;
 }
 
 Game::~Game() {
@@ -234,22 +178,29 @@ Game::~Game() {
     for (auto it : items) delete it;
 }
 
-// 產生敵人與物品
-void Game::spawnObjects(int elapsedSec) {
-    if (rand() % 8 == 0) {
-        int x = rand() % width;
+void Game::spawnObjects(int) {
+    if (std::rand() % 8 == 0) {
+        int x = std::rand() % width;
         enemies.push_back(new CoconutLeaf(x, 0));
     }
 
-    if (rand() % 20 == 0) {
-        int x = rand() % width;
+    if (std::rand() % 20 == 0) {
+        int x = std::rand() % width;
         items.push_back(new ChickenCutlet(x, 0));
     }
 
-    int umbrellaChance = isRaining ? 30 : 80;
-    if (rand() % umbrellaChance == 0) {
-        int x = rand() % width;
-        items.push_back(new Umbrella(x, 0));
+    if (isRaining) {
+        bool hasUmbrella = false;
+        for (auto it : items) {
+            if (it->isActive() && it->getSymbol() == 'U') {
+                hasUmbrella = true;
+                break;
+            }
+        }
+        if (!hasUmbrella) {
+            int x = std::rand() % width;
+            items.push_back(new Umbrella(x, 0));
+        }
     }
 }
 
@@ -268,7 +219,7 @@ void Game::updateObjects() {
     }
 }
 
-void Game::handleCollisions() {
+void Game::handleCollisions(int elapsedSec) {
     int px = player.getX();
     int py = player.getY();
 
@@ -282,7 +233,18 @@ void Game::handleCollisions() {
     for (auto it : items) {
         if (!it->isActive()) continue;
         if (it->getX() == px && it->getY() == py) {
+            bool isUmb = (it->getSymbol() == 'U');
             it->apply(player);
+
+            if (isUmb && isRaining) {
+                isRaining = false;
+                lastRainDamageSecond = -1;
+
+                int remainingSec = timeLimit - elapsedSec;
+                if (remainingSec > 0) {
+                    nextRainStart = elapsedSec + 10 + std::rand() % 11;
+                }
+            }
         }
     }
 }
@@ -309,28 +271,22 @@ void Game::removeInactive() {
 
 void Game::drawRain(std::vector<std::string>& buffer) {
     for (int i = 0; i < width / 2; i++) {
-        int rx = rand() % width;
-        int ry = rand() % (height - 2);
+        int rx = std::rand() % width;
+        int ry = std::rand() % (height - 2);
         buffer[ry][rx] = '|';
     }
 }
 
-// ========================================================
-// ★★★  Double Buffer 版 drawFrame（核心） ★★★
-// ========================================================
-
 void Game::drawFrame(int remainingSec) {
+    clearScreen();
 
-    // 1. 組裝畫面到字串
-    std::ostringstream oss;
+    std::cout << "HP: " << std::setw(3) << player.getHealth()
+              << "   Time Left: " << std::setw(3) << remainingSec
+              << "   Score: " << std::setw(4) << player.getScore()
+              << "   Weather: " << (isRaining ? "RAINING" : "SUNNY")
+              << "\n";
 
-    oss << "HP: " << std::setw(3) << player.getHealth()
-        << "   Time Left: " << std::setw(3) << remainingSec
-        << "   Score: " << std::setw(4) << player.getScore()
-        << "   Weather: " << (isRaining ? "RAINING" : "SUNNY")
-        << "\n";
-
-    oss << std::string(width, '=') << "\n";
+    std::cout << std::string(width, '=') << "\n";
 
     std::vector<std::string> buffer(height, std::string(width, ' '));
 
@@ -340,103 +296,112 @@ void Game::drawFrame(int remainingSec) {
         if (!e->isActive()) continue;
         int ex = e->getX();
         int ey = e->getY();
-        if (ey>=0 && ey<height && ex>=0 && ex<width)
+        if (ey >= 0 && ey < height && ex >= 0 && ex < width) {
             buffer[ey][ex] = e->getSymbol();
+        }
     }
 
     for (auto it : items) {
         if (!it->isActive()) continue;
         int ix = it->getX();
         int iy = it->getY();
-        if (iy>=0 && iy<height && ix>=0 && ix<width)
+        if (iy >= 0 && iy < height && ix >= 0 && ix < width) {
             buffer[iy][ix] = it->getSymbol();
+        }
     }
 
     player.draw(buffer);
 
-    for (int i = 0; i < height; i++)
-        oss << buffer[i] << "\n";
-
-    std::string screenText = oss.str();
-
-    // 2. 寫入目前 active buffer
-    DWORD written;
-    WriteConsoleOutputCharacter(
-        screenBuffer[activeBuffer],
-        screenText.c_str(),
-        (DWORD)screenText.size(),
-        {0, 0},
-        &written
-    );
-
-    // 3. 翻面（顯示剛剛畫好的畫面）
-    flipBuffer();
+    for (int i = 0; i < height; i++) {
+        std::cout << buffer[i] << "\n";
+    }
 }
 
-// 存檔
 void Game::saveResult() const {
     std::ofstream ofs("results.txt", std::ios::app);
     if (!ofs) {
         throw std::runtime_error("Cannot open results.txt");
     }
-
     ofs << (success ? "SUCCESS" : "GAMEOVER") << " "
         << player.getName() << " "
         << "HP=" << player.getHealth() << " "
         << "Score=" << player.getScore() << "\n";
 }
 
-// 主遊戲迴圈（原本沒動）
 void Game::run() {
+    // 每次 run 之前重設狀態
+    gameOver = false;
+    success  = false;
+    isRaining = false;
+
+    for (auto e : enemies) delete e;
+    enemies.clear();
+    for (auto it : items) delete it;
+    items.clear();
+
+    player.setHealth(100);
+    player.setPosition(width / 2, height - 1);
+    nextRainStart = 10 + std::rand() % 11;
+    lastRainDamageSecond = -1;
+
     hideCursor();
+    clearScreen();
 
     std::cout << "====== NTU Student Survival Game ======\n";
-    std::cout << "Use LEFT/RIGHT arrow keys or A/D to move.\n";
+    std::cout << "Move with LEFT/RIGHT arrow keys or A/D.\n";
     std::cout << "C = coconut leaf (damage)\n";
-    std::cout << "G = chicken cutlet (heal + score)\n";
-    std::cout << "U = umbrella (stop rain + small heal)\n";
+    std::cout << "G = chicken cutlet (score only)\n";
+    std::cout << "U = umbrella (stop rain + score)\n";
+    std::cout << "Game time: " << timeLimit << " seconds.\n";
     std::cout << "Press any key to start...\n";
     _getch();
 
     auto startTime = std::chrono::steady_clock::now();
 
-    while (!gameOver && !success) {
-
+    while (true) {
         auto now = std::chrono::steady_clock::now();
-        int elapsedSec = (int)std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
+        int elapsedSec =
+            (int)std::chrono::duration_cast<std::chrono::seconds>(now - startTime).count();
         int remainingSec = timeLimit - elapsedSec;
+        if (remainingSec < 0) remainingSec = 0;
 
-        if (remainingSec <= 0) { success = true; break; }
+        if (elapsedSec >= timeLimit) {
+            success = true;
+            break;
+        }
+        if (player.getHealth() <= 0) {
+            gameOver = true;
+            break;
+        }
 
-        if (!isRaining && player.getHealth() <= 50) {
+        if (!isRaining && elapsedSec >= nextRainStart) {
             isRaining = true;
+            lastRainDamageSecond = -1;
         }
 
-        if (isRaining && elapsedSec % 8 == 0) {
+        if (isRaining && elapsedSec != lastRainDamageSecond) {
             int hp = player.getHealth();
-            hp -= 1;
-            if (hp<0) hp = 0;
+            hp -= 5;
+            hp = clampValue(hp, 0, 100);
             player.setHealth(hp);
+            lastRainDamageSecond = elapsedSec;
         }
-
-        if (player.getHealth() <= 0) { gameOver = true; break; }
 
         if (_kbhit()) {
             int c = _getch();
             if (c == 0 || c == 224) {
                 int c2 = _getch();
-                if (c2 == 75) player.moveLeft();
+                if (c2 == 75)      player.moveLeft();
                 else if (c2 == 77) player.moveRight(width);
-            }
-            else {
-                if (c=='a' || c=='A') player.moveLeft();
-                if (c=='d' || c=='D') player.moveRight(width);
+            } else {
+                if (c == 'a' || c == 'A') player.moveLeft();
+                if (c == 'd' || c == 'D') player.moveRight(width);
             }
         }
 
         spawnObjects(elapsedSec);
         updateObjects();
-        handleCollisions();
+        handleCollisions(elapsedSec);
         removeInactive();
         drawFrame(remainingSec);
 
@@ -449,12 +414,17 @@ void Game::run() {
         std::cerr << "Save file failed: " << e.what() << "\n";
     }
 
-    // 退出前切回預設 console buffer
-    SetConsoleActiveScreenBuffer(GetStdHandle(STD_OUTPUT_HANDLE));
+    // 🔥 清空畫面，顯示純結束畫面＋你想要的訊息
+    clearScreen();
 
     std::cout << (gameOver ? "===== GAME OVER =====\n"
                            : "===== SUCCESS =====\n");
+
+    if (gameOver) {
+        std::cout << "You died QQ\n";
+    } else {
+        std::cout << "Congratulations! You survived! :D\n";
+    }
+
     std::cout << "Final Score: " << player.getScore() << "\n";
-    std::cout << "Press any key to exit...\n";
-    _getch();
 }

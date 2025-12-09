@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <windows.h>
 
+// test change
+
 int main() {
     // 取得標準輸入的 handle，用來清空鍵盤 buffer
     HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);

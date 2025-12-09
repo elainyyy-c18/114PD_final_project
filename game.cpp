@@ -9,6 +9,8 @@
 #include <fstream>
 #include <stdexcept>
 
+// test change
+
 static HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
 
 // 真正清空整個 console，用在：一局開始前、結束畫面

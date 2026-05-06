@@ -1,0 +1,12 @@
+# 編譯產生的目的檔與執行檔
+*.o
+*.out
+*.exe
+/obj/
+/bin/
+
+# 開發工具與作業系統產生的隱藏檔
+.DS_Store
+.vscode/
+.idea/
+*.swp

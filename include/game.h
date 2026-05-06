@@ -5,8 +5,6 @@
 #include <vector>
 #include <iostream>
 
-// test change
-
 class Character {
 protected:
     std::string name;
@@ -30,7 +28,7 @@ public:
 class Player : public Character {
 private:
     int level;
-    int experience;
+    int experience; // 以後如果要做角色升級會用到
     int x, y;
     int score;
 
@@ -48,7 +46,7 @@ public:
     void draw(std::vector<std::string>& buffer) const;
 
     void gainScore(int s);
-    Player& operator+=(int exp);
+    Player& operator+=(int exp); // 以後如果要做角色升級會用到
 
     void attack(Character& target) override;
 };

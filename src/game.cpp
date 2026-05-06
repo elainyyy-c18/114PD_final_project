@@ -341,7 +341,7 @@ void Game::drawFrame(int remainingSec) {
 }
 
 void Game::saveResult() const {
-    std::ofstream ofs("results.txt", std::ios::app);
+    std::ofstream ofs("output/results.txt", std::ios::app);
     if (!ofs) {
         throw std::runtime_error("Cannot open results.txt");
     }

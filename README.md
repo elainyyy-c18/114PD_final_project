@@ -66,3 +66,6 @@ make clean
 
 ### 3. 下雨遊戲操作頁面
 <img width="1373" height="590" alt="image" src="https://github.com/user-attachments/assets/dc3be4a6-8b61-44a6-a40a-1e9abaa56a3e" />
+
+### 4. result 輸出畫面
+<img width="1153" height="634" alt="image" src="https://github.com/user-attachments/assets/a11c80fe-9000-49b6-8484-25defb9af97b" />

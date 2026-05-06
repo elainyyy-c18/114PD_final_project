@@ -69,3 +69,5 @@ make clean
 
 ### 4. result 輸出畫面
 <img width="1153" height="634" alt="image" src="https://github.com/user-attachments/assets/a11c80fe-9000-49b6-8484-25defb9af97b" />
+
+## 🎬 專案展示影片

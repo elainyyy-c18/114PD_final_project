@@ -342,28 +342,24 @@ void Game::drawFrame(int remainingSec) {
 
 void Game::saveResult() const {
     std::ofstream ofs("output/results.txt", std::ios::app);
-    if (!ofs) {
-        throw std::runtime_error("Cannot open results.txt");
+    if (!ofs.is_open()) {
+        return; 
     }
 
-    // 取得現在時間
-    auto now = std::chrono::system_clock::now();
-    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
-    std::tm localTime;
+    std::time_t now_c = std::time(nullptr);
+    std::tm* localTime = std::localtime(&now_c);
 
-    // Windows 版 localtime_s（安全版本）
-    localtime_s(&localTime, &now_c);
-
-    char timeBuf[32];
-    std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", &localTime);
-
-    // 寫入結果
+    char timeBuf[64] = "Unknown Time";
+    if (localTime != nullptr) {
+        std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", localTime);
+    }
     ofs << "[" << timeBuf << "] "
         << (success ? "SUCCESS" : "GAMEOVER") << " "
         << player.getName() << " "
         << "HP=" << player.getHealth() << " "
-        << "Score=" << player.getScore()
-        << "\n";
+        << "Score=" << player.getScore() << "\n";
+
+    ofs.close();
 }
 
 void Game::run() {
@@ -472,4 +468,5 @@ void Game::run() {
     }
 
     std::cout << "Final Score: " << player.getScore() << "\n";
+    Sleep(1500);
 }

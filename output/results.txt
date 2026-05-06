@@ -1,4 +1,4 @@
-GAMEOVER NTU_Student HP=0 Score=0
+ㄌGAMEOVER NTU_Student HP=0 Score=0
 GAMEOVER NTU_Student HP=0 Score=5
 SUCCESS NTU_Student HP=100 Score=50
 SUCCESS NTU_Student HP=8 Score=10

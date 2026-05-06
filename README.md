@@ -71,3 +71,4 @@ make clean
 <img width="1153" height="634" alt="image" src="https://github.com/user-attachments/assets/a11c80fe-9000-49b6-8484-25defb9af97b" />
 
 ## 🎬 專案展示影片
+https://www.youtube.com/watch?v=ckHAiTAwTuU

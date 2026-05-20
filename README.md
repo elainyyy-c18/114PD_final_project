@@ -5,14 +5,14 @@
 ## 技術亮點
 
 *   **物件導向設計 (OOP)**：
-    *   **繼承架構**：以 `Character` 為基底類別，衍生出 `Player` 與 `Enemy`[cite: 4]；`Item` 基類則管理 `ChickenCutlet` 與 `Umbrella` 等不同道具。
-    *   **運算子多載**：實作 `operator+=` 處理經驗值與等級邏輯，以及 `operator<<` 簡化除錯與狀態輸出。
-    *   **多型應用**：透過虛擬函式處理不同物件的碰撞偵測與行為更新，展現良好的程式擴充性。
+    *   **繼承架構**：以 `Character` 為基底類別，衍生出 `Player` 與 `Enemy`；`Item` 基底類別則管理 `ChickenCutlet` 與 `Umbrella` 等不同道具。
+    *   **運算子多載**：實作 `operator+=` 處理經驗值與等級，以及 `operator<<` 簡化除錯與狀態輸出。
+    *   **多型應用**：透過虛擬函式處理不同物件的碰撞偵測與行為更新，程式擴充性良好。
 *   **Windows 系統整合**：
-    *   **Console 畫面優化**：調用 `Windows.h` API 隱藏游標、非同步偵測按鍵 (`GetAsyncKeyState`)，確保遊戲操作靈敏且流暢。
+    *   **Console 畫面優化**：調用 `Windows.h` API 隱藏游標、非同步偵測按鍵 (`GetAsyncKeyState`)，確保遊戲操作流暢。
     *   **視覺回饋**：實作螢幕閃爍特效 (`flashScreen`) 與控制台屬性切換，提升受傷或特殊事件的臨場感。
 *   **現代 C++ 特性**：
-    *   使用 `<chrono>` 庫進行高精度遊戲時間管理與動態雨天週期運算。
+    *   使用 `<chrono>` 進行高精度遊戲時間管理與動態雨天週期運算。
     *   實作泛型模板函數 `clampValue` 處理生命值與座標的邊界限制。
 *   **資料持久化**：
     *   透過 `fstream` 實作自動紀錄功能，將遊戲結果（含時間、得分、勝敗狀態）自動存檔至 `output/results.txt`。
@@ -23,7 +23,7 @@
 *   **操作方式**：
     *   使用 `方向鍵 (LEFT/RIGHT)` 或 `A/D` 進行左右移動。
 *   **物件說明**：
-    *   `S` (Player)：玩家代表符號[cite: 2]。
+    *   `S` (Player)：玩家代表符號。
     *   `C` (Coconut Leaf)：椰子葉，擊中會減少生命值 (HP)。
     *   `G` (Chicken Cutlet)：雞排，增加分數與經驗值。
     *   `U` (Umbrella)：雨傘，雨天時拾取可**立即停止下雨**。

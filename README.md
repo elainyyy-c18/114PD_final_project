@@ -70,7 +70,7 @@ make clean
 ### 4. result 輸出畫面
 <img width="1153" height="634" alt="image" src="https://github.com/user-attachments/assets/a11c80fe-9000-49b6-8484-25defb9af97b" />
 
-## 🎬 專案展示、回饋影片
+## 專案展示、回饋影片
 https://www.youtube.com/watch?v=ckHAiTAwTuU
 
 https://www.youtube.com/watch?v=26mP2644kj8
